@@ -1,0 +1,33 @@
+name: Make reels
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # looks for important news every ~10 minutes
+  workflow_dispatch:          # lets you press "Run workflow" by hand to test
+
+concurrency:
+  group: reels
+  cancel-in-progress: false
+
+jobs:
+  reels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+      OWNER_PASSWORD: ${{ secrets.OWNER_PASSWORD }}
+      SITE_URL: https://postfeeder.netlify.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Is there an important story without a reel?
+        id: check
+        run: node reels.mjs check
+      - name: Install browser driver
+        if: steps.check.outputs.has_work == 'true'
+        run: npm install --no-save playwright-core@1.49.1
+      - name: Make and post the reels
+        if: steps.check.outputs.has_work == 'true'
+        run: node reels.mjs render
